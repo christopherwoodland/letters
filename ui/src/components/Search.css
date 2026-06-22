@@ -1,0 +1,159 @@
+.search-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.search-form {
+  background: white;
+}
+
+.search-form h2 {
+  margin-bottom: 8px;
+}
+
+.search-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.search-form textarea:focus {
+  border-color: #667eea;
+  outline: none;
+}
+
+.btn-search {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.btn-search:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-search:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.results-card {
+  background: white;
+}
+
+.results-card h3 {
+  margin-bottom: 16px;
+}
+
+.result-count {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-item {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f9f9f9;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.result-header:hover {
+  background: #f0f0f0;
+}
+
+.result-title-section {
+  flex: 1;
+}
+
+.result-title-section h4 {
+  margin: 0;
+  color: #333;
+  font-size: 15px;
+}
+
+.result-badges {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.expand-icon {
+  color: #999;
+  font-size: 12px;
+  margin-left: 16px;
+}
+
+.result-content {
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+  background: white;
+}
+
+.content-preview {
+  margin-bottom: 16px;
+}
+
+.content-preview h5 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #667eea;
+  text-transform: uppercase;
+}
+
+.content-preview p {
+  margin: 0;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.metadata {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #666;
+}
+
+.metadata span {
+  display: flex;
+  gap: 4px;
+}
+
+.metadata strong {
+  color: #333;
+}

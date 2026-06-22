@@ -1,0 +1,8 @@
+.venv/
+documents/
+bin/
+obj/
+*.user
+*.suo
+.vs/
+appsettings.Development.json

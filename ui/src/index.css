@@ -1,0 +1,138 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #f5f5f5;
+  min-height: 100vh;
+  color: #242424;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  border: none;
+  border-radius: 4px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  font-family: inherit;
+}
+
+button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input, textarea, select {
+  border: 1px solid #d1d1d1;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px 24px;
+}
+
+.error {
+  background: #fde7e9;
+  color: #a80000;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  border: 1px solid #f1bbbc;
+  font-size: 13px;
+}
+
+.success {
+  background: #dff6dd;
+  color: #107c10;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  border: 1px solid #9fd89f;
+  font-size: 13px;
+}
+
+.loading {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d1d1d1;
+  border-top: 2px solid #0078d4;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: #dff6dd;
+  color: #107c10;
+}
+
+.badge-warning {
+  background: #fff8e1;
+  color: #7a5d00;
+}
+
+.badge-danger {
+  background: #fde7e9;
+  color: #a80000;
+}
+
+.badge-info {
+  background: #e1f5fe;
+  color: #0078d4;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}

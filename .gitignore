@@ -1,0 +1,28 @@
+# .NET build outputs
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Secrets – never commit Development settings (may contain API keys)
+appsettings.Development.json
+
+# Azurite local storage emulator
+__azurite_db_blob__.json
+__azurite_db_blob_extent__.json
+__blobstorage__/
+
+# Local document storage
+src/DocumentClassifier/documents/
+
+# Node / UI
+node_modules/
+dist/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Input test files (large PDFs)
+input/

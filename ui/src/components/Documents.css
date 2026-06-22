@@ -1,0 +1,179 @@
+.documents-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.doc-count {
+  color: #616161;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.document-item {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+}
+
+.doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.doc-header:hover {
+  background: #fafafa;
+}
+
+.doc-info {
+  flex: 1;
+}
+
+.doc-info h4 {
+  margin: 0;
+  color: #1b1b1f;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.doc-meta {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.confidence {
+  font-size: 12px;
+  color: #107c10;
+  font-weight: 600;
+}
+
+.indexed-time {
+  font-size: 12px;
+  color: #858585;
+}
+
+.expand-icon {
+  color: #858585;
+  font-size: 12px;
+}
+
+.doc-details {
+  padding: 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 10px;
+}
+
+.detail-row .label {
+  font-weight: 600;
+  color: #424242;
+  min-width: 80px;
+  font-size: 12px;
+}
+
+.detail-row .value {
+  color: #616161;
+  font-size: 12px;
+}
+
+.reasoning-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #ededed;
+  border-radius: 4px;
+}
+
+.reasoning-box .label {
+  font-weight: 600;
+  color: #424242;
+  font-size: 12px;
+}
+
+.reasoning-box p {
+  margin: 0;
+  color: #616161;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.content-preview-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.content-preview-box .label {
+  font-weight: 600;
+  color: #424242;
+  font-size: 12px;
+}
+
+.content-preview-box .text-preview {
+  background: #fff;
+  border: 1px solid #ededed;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #424242;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.doc-actions {
+  padding-top: 8px;
+}
+
+.doc-actions .btn-secondary {
+  background: #fff;
+  color: #0078d4;
+  border: 1px solid #0078d4;
+  padding: 5px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+  transition: background 0.15s;
+}
+
+.doc-actions .btn-secondary:hover {
+  background: #f0f6ff;
+}
+
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: #858585;
+  font-size: 13px;
+}
+
+.page-description {
+  color: #616161;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
