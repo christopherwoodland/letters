@@ -4,7 +4,7 @@
 Security scanner for DocumentClassifier - detects potential secrets in staged files.
 
 .DESCRIPTION
-This script checks staged Git files for common patterns that indicate secrets 
+This script checks staged Git files for common patterns that indicate secrets
 (API keys, passwords, connection strings, etc.). It can be used as a pre-commit hook.
 
 .EXAMPLE
@@ -77,11 +77,11 @@ foreach ($file in $stagedFiles) {
             continue
         }
     }
-    
+
     # Check file content for sensitive patterns
     try {
         $content = git show ":$file" 2>$null
-        
+
         if ($null -ne $content) {
             foreach ($sensitive in $sensitivePatterns) {
                 if ($content -match $sensitive.Pattern) {
@@ -102,12 +102,12 @@ foreach ($file in $stagedFiles) {
 if ($issues.Count -gt 0) {
     Write-Host "⚠️  SECURITY ISSUES DETECTED:" -ForegroundColor Red
     Write-Host "`n"
-    
+
     foreach ($issue in $issues) {
         Write-Host "   ❌ [$($issue.Type)] $($issue.File)" -ForegroundColor Red
         Write-Host "      → $($issue.Message)" -ForegroundColor Yellow
     }
-    
+
     Write-Host "`n" + ("="*70) -ForegroundColor Red
     Write-Host "❌ COMMIT BLOCKED: Potential secrets detected!" -ForegroundColor Red
     Write-Host ("="*70) -ForegroundColor Red
@@ -119,7 +119,7 @@ if ($issues.Count -gt 0) {
     Write-Host "To override (NOT RECOMMENDED):" -ForegroundColor Red
     Write-Host "  git commit --no-verify`n"
     Write-Host ("="*70) -ForegroundColor Red
-    
+
     exit 1
 }
 

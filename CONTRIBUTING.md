@@ -31,6 +31,31 @@ cd ui
 npm run dev
 ```
 
+### Authentication Setup (Optional)
+
+By default, the API runs without authentication. To test authentication features:
+
+1. **Enable authentication in appsettings.Development.json**:
+   ```json
+   {
+     "Authentication": {
+       "Enabled": true,
+       "TenantId": "your-tenant-id",
+       "ClientId": "your-client-id"
+     }
+   }
+   ```
+
+2. **Store secrets securely**:
+   ```bash
+   dotnet user-secrets set "Authentication:TenantId" "your-value"
+   dotnet user-secrets set "Authentication:ClientId" "your-value"
+   ```
+
+3. **Follow the [Authentication Setup Guide](./AUTHENTICATION_SETUP.md)** for complete instructions
+
+**Note**: Most development requires authentication disabled for ease of testing.
+
 ### Running Tests
 
 ```bash

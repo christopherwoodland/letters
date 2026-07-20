@@ -56,19 +56,19 @@ def check_staged_files():
             check=True
         )
         staged_files = result.stdout.strip().split('\n')
-        
+
         issues = []
-        
+
         for filepath in staged_files:
             if not filepath:
                 continue
-                
+
             # Check if file matches forbidden patterns
             for pattern in FORBIDDEN_FILES:
                 if re.match(pattern, filepath, re.IGNORECASE):
                     issues.append(f"❌ Forbidden file type detected: {filepath}")
                     continue
-            
+
             # Check file content for sensitive patterns
             try:
                 result = subprocess.run(
@@ -77,7 +77,7 @@ def check_staged_files():
                     text=True,
                     check=False
                 )
-                
+
                 if result.returncode == 0:
                     content = result.stdout
                     for pattern, description in PATTERNS.items():
@@ -86,20 +86,20 @@ def check_staged_files():
             except Exception as e:
                 # Skip binary files or files that can't be read
                 pass
-        
+
         return issues
 
 def main():
     """Main pre-commit hook logic."""
     print("🔍 Running security checks...\n")
-    
+
     issues = check_staged_files()
-    
+
     if issues:
         print("⚠️  SECURITY ISSUES DETECTED:\n")
         for issue in issues:
             print(f"   {issue}")
-        
+
         print("\n" + "="*70)
         print("❌ COMMIT BLOCKED: Potential secrets detected!\n")
         print("What to do:")
@@ -111,7 +111,7 @@ def main():
         print("  git commit --no-verify\n")
         print("="*70)
         return 1
-    
+
     print("✅ No sensitive data detected\n")
     return 0
 

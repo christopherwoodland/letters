@@ -1,6 +1,7 @@
 using DocumentClassifier.Models;
 using DocumentClassifier.Services;
 using DocumentClassifier.Workflow;
+using DocumentClassifier.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DocumentClassifier.Controllers;
@@ -13,6 +14,7 @@ public class DocumentsController : ControllerBase
     private readonly IReviewQueueStore _reviewQueue;
     private readonly DocumentClassificationWorkflowFactory _workflowFactory;
     private readonly StorageOptions _storageOptions;
+    private readonly IFileValidationService _fileValidation;
     private readonly ILogger<DocumentsController> _logger;
 
     public DocumentsController(
@@ -20,17 +22,20 @@ public class DocumentsController : ControllerBase
         IReviewQueueStore reviewQueue,
         DocumentClassificationWorkflowFactory workflowFactory,
         Microsoft.Extensions.Options.IOptions<StorageOptions> storageOptions,
+        IFileValidationService fileValidation,
         ILogger<DocumentsController> logger)
     {
         _workflow = workflow;
         _reviewQueue = reviewQueue;
         _workflowFactory = workflowFactory;
         _storageOptions = storageOptions.Value;
+        _fileValidation = fileValidation;
         _logger = logger;
     }
 
     /// <summary>
     /// Full pipeline: upload document, extract text, classify, and index for RAG.
+    /// Requires authentication when enabled. Rate limited to prevent abuse.
     /// </summary>
     [HttpPost("process")]
     [Consumes("multipart/form-data")]
@@ -40,36 +45,80 @@ public class DocumentsController : ControllerBase
         CancellationToken ct = default)
     {
         if (file is null || file.Length == 0)
+        {
+            _logger.LogWarning("File upload attempted with no file provided");
             return BadRequest("No file provided.");
+        }
 
         if (file.Length > _storageOptions.MaxUploadBytes)
+        {
+            _logger.LogWarning("File upload rejected: size {FileSize} exceeds limit {MaxSize}", 
+                file.Length, _storageOptions.MaxUploadBytes);
             return BadRequest($"File exceeds max size of {_storageOptions.MaxUploadBytes} bytes.");
+        }
 
         if (!IsSupportedFileType(file.FileName, file.ContentType))
+        {
+            _logger.LogWarning("File upload rejected: unsupported type {FileType} for {FileName}", 
+                file.ContentType, file.FileName);
             return BadRequest("Unsupported file type. Allowed: PDF, TXT, DOCX, JPG, PNG, TIFF.");
+        }
 
+        // Validate file content matches extension
         using var stream = file.OpenReadStream();
+        if (!await _fileValidation.ValidateFileContentAsync(stream, file.FileName))
+        {
+            _logger.LogWarning("File upload rejected: content validation failed for {FileName}", file.FileName);
+            return BadRequest("File content does not match declared type. Possible malicious file.");
+        }
+
+        stream.Position = 0;
+        
+        _logger.LogInformation("Processing document: {FileName} with profile: {ProfileName}", 
+            file.FileName, profileName);
+        
         var result = await _workflow.ProcessAsync(stream, file.FileName, profileName, ct);
+        
+        _logger.LogInformation("Document processed successfully: {FileName}, category: {Category}, confidence: {Confidence}",
+            file.FileName, result.Classification?.Category ?? "unknown", result.Classification?.Confidence ?? 0.0);
+        
         return Ok(result);
     }
 
     /// <summary>
     /// Extract text only from an uploaded document.
+    /// Requires authentication when enabled.
     /// </summary>
     [HttpPost("extract")]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<object>> Extract(IFormFile file, CancellationToken ct = default)
     {
         if (file is null || file.Length == 0)
+        {
+            _logger.LogWarning("Text extraction attempted with no file");
             return BadRequest("No file provided.");
+        }
 
         if (file.Length > _storageOptions.MaxUploadBytes)
+        {
+            _logger.LogWarning("Text extraction rejected: file size {FileSize} exceeds limit", file.Length);
             return BadRequest($"File exceeds max size of {_storageOptions.MaxUploadBytes} bytes.");
+        }
 
         if (!IsSupportedFileType(file.FileName, file.ContentType))
+        {
+            _logger.LogWarning("Text extraction rejected: unsupported file type for {FileName}", file.FileName);
             return BadRequest("Unsupported file type. Allowed: PDF, TXT, DOCX, JPG, PNG, TIFF.");
+        }
 
         using var stream = file.OpenReadStream();
+        if (!await _fileValidation.ValidateFileContentAsync(stream, file.FileName))
+        {
+            _logger.LogWarning("Text extraction rejected: content validation failed for {FileName}", file.FileName);
+            return BadRequest("File content does not match declared type.");
+        }
+
+        stream.Position = 0;
         var storage = HttpContext.RequestServices.GetRequiredService<IDocumentStorageService>();
         var extraction = HttpContext.RequestServices.GetRequiredService<ITextExtractionService>();
 
@@ -77,11 +126,15 @@ public class DocumentsController : ControllerBase
         using var extractStream = System.IO.File.OpenRead(localPath);
         var text = await extraction.ExtractTextAsync(extractStream, file.FileName, ct);
 
+        _logger.LogInformation("Text extracted from {FileName}, {CharCount} characters", 
+            file.FileName, text.Length);
+
         return Ok(new { fileName = file.FileName, text, characterCount = text.Length });
     }
 
     /// <summary>
     /// Classify already-extracted text with a specific profile.
+    /// Requires authentication when enabled.
     /// </summary>
     [HttpPost("classify")]
     public async Task<ActionResult<ClassificationResult>> Classify(
@@ -89,9 +142,16 @@ public class DocumentsController : ControllerBase
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Text))
+        {
+            _logger.LogWarning("Classification attempted with empty text");
             return BadRequest("Text is required.");
+        }
 
         var result = await _workflow.ClassifyAsync(request.Text, request.ProfileName, ct);
+        
+        _logger.LogInformation("Text classified: profile={ProfileName}, category={Category}, confidence={Confidence}",
+            request.ProfileName, result.Category, result.Confidence);
+        
         return Ok(result);
     }
 

@@ -119,7 +119,7 @@ return BadRequest($"Failed to connect to {connection.ConnectionString}");
 
 ```csharp
 // ✅ Good: Redacted
-_logger.LogInformation("Connected to endpoint {Endpoint}", 
+_logger.LogInformation("Connected to endpoint {Endpoint}",
     endpoint.Substring(0, 20) + "...");
 
 // ❌ Bad: Exposed
@@ -200,5 +200,5 @@ If you have questions about security practices, please:
 
 ---
 
-**Last Updated**: July 20, 2026  
+**Last Updated**: July 20, 2026
 **Status**: Active - All team members must comply

@@ -304,14 +304,215 @@ tests/
 - **Integration tests**: Test workflows end-to-end
 - **Mock strategy**: Moq for Azure SDK clients
 
-## Security Considerations
+## Security Architecture
 
-1. **Authentication**: Azure authentication via DefaultAzureCredential
-2. **CORS**: Configured for local development (`localhost:5173`)
-3. **Input Validation**: File type and size validation
-4. **Logging**: No sensitive data (API keys) in logs
-5. **File Upload**: Restricted to supported formats
-6. **Configuration**: Sensitive config via User Secrets or environment variables
+### Authentication & Authorization
+
+#### Azure Entra ID Integration (Optional)
+- **Configuration**: Enable via `Authentication:Enabled` in appsettings.json
+- **Implementation**: JWT bearer tokens via Microsoft.Identity.Web
+- **Token Validation**: Automatic bearer token validation on protected endpoints
+- **Claims-based Authorization**: Custom authorization policies for different operations
+- **Scopes**: `api://document-classifier/.default` for Graph API access
+
+```json
+{
+  "Authentication": {
+    "Enabled": false,
+    "TenantId": "your-tenant-id",
+    "ClientId": "your-client-id",
+    "Audience": "your-api-audience"
+  }
+}
+```
+
+#### Authorization Policies
+- **DocumentProcessing**: Any authenticated user
+- **AdminOnly**: Admin role only
+- **Health Checks**: No authentication required
+
+### File Upload Security
+
+#### Magic Number Validation (`FileValidationService`)
+Validates file content against declared MIME type using magic numbers (file signatures):
+- **PDF** (0x25504446): %PDF
+- **JPEG** (0xFFD8FF): JPG header
+- **PNG** (0x89504E47): PNG signature
+- **TIFF** (0x49492A00 or 0x4D4D002A): TIFF variants
+- **DOCX** (0x504B0304): ZIP archive
+- **TXT**: No specific signature (text files)
+
+**Purpose**: Prevent content-mismatch attacks where files are renamed to different extensions.
+
+#### File Size Limits
+- **Default**: 20 MB per file (`FileValidation:MaxUploadBytes`)
+- **Configurable**: Per-environment via appsettings
+
+#### Supported Extensions
+Only these extensions are allowed:
+- `.pdf`, `.txt`, `.docx`, `.jpg`, `.jpeg`, `.png`, `.tiff`, `.tif`
+
+### Security Headers
+
+#### Implemented Headers
+```
+X-Content-Type-Options: nosniff              # Prevent MIME sniffing
+X-Frame-Options: DENY                        # Prevent clickjacking
+X-XSS-Protection: 1; mode=block              # Legacy XSS protection
+Strict-Transport-Security: max-age=31536000  # HSTS (production only)
+Content-Security-Policy: ...                 # CSP policy
+Referrer-Policy: strict-origin-when-cross-origin  # Referrer privacy
+```
+
+#### Middleware Implementation
+Security headers added via middleware in Program.cs on ALL responses before authentication/authorization.
+
+### Error Handling & Information Disclosure
+
+#### GlobalExceptionHandlerMiddleware
+- **Purpose**: Standardize error responses without exposing internal details
+- **Implementation**: Catches all unhandled exceptions and returns safe error responses
+- **Security Benefit**: No stack traces, file paths, or internal error details exposed to API clients
+- **Error Codes**: Standardized error codes for client handling
+
+Example response:
+```json
+{
+  "message": "An unexpected error occurred. Please try again later.",
+  "errorCode": "INTERNAL_ERROR",
+  "traceId": "00-correlation-id-00",
+  "timestamp": "2024-12-19T10:30:00Z"
+}
+```
+
+### CORS Configuration
+
+#### Environment-Specific Origins
+```json
+{
+  "Cors": {
+    "AllowedOrigins": "http://localhost:5173;https://yourdomain.com",
+    "AllowedMethods": ["GET", "POST", "PUT", "DELETE"],
+    "AllowCredentials": false
+  }
+}
+```
+
+#### Development vs Production
+- **Development**: `http://localhost:5173`
+- **Production**: Configure specific domain only
+
+### Input Validation
+
+#### Document Upload Validation
+1. **File presence**: Check file provided
+2. **File size**: Check against max upload bytes
+3. **Extension**: Check against allowed extensions list
+4. **Content validation**: Validate magic numbers match declared type
+5. **Text length**: Classification text must not be empty
+
+#### Classification Input Validation
+- Text cannot be null or whitespace
+- Profile name must exist
+
+### Rate Limiting (Optional)
+
+#### Configuration
+```json
+{
+  "RateLimiting": {
+    "Enabled": false,
+    "PermitLimit": 100,
+    "WindowSeconds": 60,
+    "QueuedRequestLimit": 2
+  }
+}
+```
+
+#### Implementation
+- Fixed window rate limiter
+- Returns HTTP 429 (Too Many Requests) when exceeded
+- Prevents abuse of upload and processing endpoints
+
+### Secrets Management
+
+#### Storage Methods
+1. **Development**: `dotnet user-secrets`
+2. **Local**: `.env` file (git-ignored)
+3. **Production**: Azure Key Vault via DefaultAzureCredential
+4. **CI/CD**: GitHub Actions secrets
+
+#### Never In Code
+- No API keys in source code
+- All sensitive values in configuration (empty strings in appsettings.json)
+- Pre-commit hooks prevent accidental secret commits
+
+### Logging & Audit
+
+#### Security Events Logged
+- File upload attempts (filename, size, validation results)
+- Classification operations (profile, confidence)
+- Document processing success/failure
+- Authentication failures (when enabled)
+- Policy violations
+
+#### Logged But Redacted
+- No full API responses logged
+- No request bodies with sensitive data
+- User IDs hashed for privacy
+
+#### Correlation IDs
+- Unique correlation ID per request (CorrelationIdMiddleware)
+- Included in error responses for tracing
+- Enables audit trail reconstruction
+
+### Configuration Security
+
+#### appsettings.json (Committed)
+- All API keys are empty strings ""
+- Safe defaults for all settings
+- No sensitive data
+
+#### appsettings.Development.json (Git-ignored)
+- Development-specific secrets
+- Local Azure service endpoints
+- Never pushed to repository
+
+#### Environment Overrides
+```bash
+# Set via environment variables
+export DocumentIntelligence__Endpoint="https://..."
+export AzureOpenAI__ApiKey="..."
+```
+
+### Pre-commit Protection
+
+Two security hooks prevent committing secrets:
+
+#### PowerShell Hook (Windows)
+- Location: `scripts/security-check.ps1`
+- Detects: API keys, passwords, tokens, AWS/Azure secrets
+- Blocks: Uploading sensitive files (`.env`, private keys)
+
+#### Python Hook (Cross-platform)
+- Location: `scripts/pre-commit-hook.py`
+- Regex pattern matching for common secret formats
+- Works on Linux/Mac/Windows
+
+## Security Checklist
+
+- ✅ No secrets in git history
+- ✅ No hardcoded credentials in source code
+- ✅ File upload validation (size, type, content)
+- ✅ Global exception handler (no info disclosure)
+- ✅ Security headers on all responses
+- ✅ Environment-specific CORS configuration
+- ✅ Input validation on all endpoints
+- ✅ Structured logging with correlation IDs
+- ✅ Authentication/authorization ready (optional)
+- ✅ Rate limiting available (optional)
+- ⚠️ HTTPS enforcement (must enable in production)
+- ⚠️ Authentication strongly recommended for production
 
 ## Performance Optimization
 

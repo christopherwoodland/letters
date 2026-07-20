@@ -2,6 +2,8 @@ using DocumentClassifier.Services;
 using DocumentClassifier.Workflow;
 using DocumentClassifier.Infrastructure;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Identity.Web;
 using Azure.Identity;
 using Azure.Core;
 
@@ -33,18 +35,58 @@ builder.Services.AddSingleton<IDocumentStorageService, DocumentStorageService>()
 builder.Services.AddSingleton<ISearchIndexingService, SearchIndexingService>();
 builder.Services.AddSingleton<IRagService, RagService>();
 builder.Services.AddSingleton<IReviewQueueStore, FileBackedReviewQueueStore>();
+builder.Services.AddSingleton<IFileValidationService, FileValidationService>();
 builder.Services.AddSingleton<DocumentClassificationWorkflowFactory>();
 builder.Services.AddScoped<IDocumentWorkflow, DocumentWorkflow>();
 
+// Authentication (Azure AD/Entra ID)
+var authOptions = builder.Configuration.GetSection("Authentication");
+if (authOptions.GetValue<bool>("Enabled"))
+{
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("Authentication"))
+        .EnableTokenAcquisitionToCallDownstreamApi()
+        .AddInMemoryTokenCaches();
+
+    builder.Services.AddAuthorizationBuilder()
+        .AddPolicy(AuthorizationPolicies.DocumentProcessing, policy =>
+            policy.RequireAuthenticatedUser())
+        .AddPolicy(AuthorizationPolicies.AdminOnly, policy =>
+            policy.RequireAuthenticatedUser()
+                  .RequireRole("Admin", "DocumentClassifierAdmin"));
+}
+
+// CORS with environment-specific configuration
+var corsOptions = builder.Configuration.GetSection("Cors");
+var allowedOrigins = corsOptions.GetValue<string>("AllowedOrigins", "http://localhost:5173")?.Split(";") ?? [];
+var allowedMethods = corsOptions.GetSection("AllowedMethods").Get<string[]>() ?? ["GET", "POST"];
+
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("DocumentClassifierPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(allowedOrigins)
+              .WithMethods(allowedMethods)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .WithExposedHeaders("X-Correlation-Id");
     });
 });
+
+// Rate limiting
+var rateLimitOptions = builder.Configuration.GetSection("RateLimiting");
+if (rateLimitOptions.GetValue<bool>("Enabled"))
+{
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.OnRejected = (context, _) =>
+        {
+            context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            return new ValueTask();
+        };
+    });
+}
 
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
@@ -52,9 +94,95 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Document Classifier API", Version = "v1" });
+    
+    // Add JWT bearer authorization to Swagger if authentication is enabled
+    if (authOptions.GetValue<bool>("Enabled"))
+    {
+        c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Azure AD Bearer token"
+        });
+        
+        c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                new string[] { }
+            }
+        });
+    }
 });
 
 var app = builder.Build();
+
+// Global exception handler (must be first)
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+// Security headers middleware
+app.Use(async (context, next) =>
+{
+    // Prevent MIME sniffing
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    
+    // Prevent clickjacking
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    
+    // XSS protection (modern browsers use CSP, but keep for legacy)
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    
+    // HSTS (HTTP Strict Transport Security)
+    if (!app.Environment.IsDevelopment())
+    {
+        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    }
+    
+    // Content Security Policy
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';";
+    
+    // Referrer Policy
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    
+    await next();
+});
+
+// HTTPS enforcement in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// Rate limiting (if enabled)
+if (rateLimitOptions.GetValue<bool>("Enabled"))
+{
+    app.UseRateLimiter();
+}
+
+app.UseCors("DocumentClassifierPolicy");
+
+// Authentication and Authorization
+if (authOptions.GetValue<bool>("Enabled"))
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+}
+
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+app.MapControllers();
 
 // Seed default classification profiles
 var profileStore = app.Services.GetRequiredService<IProfileStore>();
@@ -71,6 +199,7 @@ if (!string.IsNullOrWhiteSpace(searchOptions.Endpoint)
     {
         var searchService = app.Services.GetRequiredService<ISearchIndexingService>();
         await searchService.EnsureIndexExistsAsync();
+        startupLogger.LogInformation("Search index initialized successfully.");
     }
     catch (Exception ex)
     {
@@ -82,12 +211,14 @@ else
     startupLogger.LogInformation("Search endpoint not configured. Skipping index initialization.");
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
-app.UseCors();
-app.UseMiddleware<CorrelationIdMiddleware>();
-
-app.MapControllers();
+if (authOptions.GetValue<bool>("Enabled"))
+{
+    startupLogger.LogInformation("Authentication enabled. Entra ID authentication is active.");
+}
+else
+{
+    startupLogger.LogWarning("Authentication is disabled. Consider enabling for production environments.");
+}
 
 app.Run();
 
