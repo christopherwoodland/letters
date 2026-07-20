@@ -52,14 +52,14 @@ public class DocumentsController : ControllerBase
 
         if (file.Length > _storageOptions.MaxUploadBytes)
         {
-            _logger.LogWarning("File upload rejected: size {FileSize} exceeds limit {MaxSize}", 
+            _logger.LogWarning("File upload rejected: size {FileSize} exceeds limit {MaxSize}",
                 file.Length, _storageOptions.MaxUploadBytes);
             return BadRequest($"File exceeds max size of {_storageOptions.MaxUploadBytes} bytes.");
         }
 
         if (!IsSupportedFileType(file.FileName, file.ContentType))
         {
-            _logger.LogWarning("File upload rejected: unsupported type {FileType} for {FileName}", 
+            _logger.LogWarning("File upload rejected: unsupported type {FileType} for {FileName}",
                 file.ContentType, file.FileName);
             return BadRequest("Unsupported file type. Allowed: PDF, TXT, DOCX, JPG, PNG, TIFF.");
         }
@@ -73,15 +73,15 @@ public class DocumentsController : ControllerBase
         }
 
         stream.Position = 0;
-        
-        _logger.LogInformation("Processing document: {FileName} with profile: {ProfileName}", 
+
+        _logger.LogInformation("Processing document: {FileName} with profile: {ProfileName}",
             file.FileName, profileName);
-        
+
         var result = await _workflow.ProcessAsync(stream, file.FileName, profileName, ct);
-        
+
         _logger.LogInformation("Document processed successfully: {FileName}, category: {Category}, confidence: {Confidence}",
             file.FileName, result.Classification?.Category ?? "unknown", result.Classification?.Confidence ?? 0.0);
-        
+
         return Ok(result);
     }
 
@@ -126,7 +126,7 @@ public class DocumentsController : ControllerBase
         using var extractStream = System.IO.File.OpenRead(localPath);
         var text = await extraction.ExtractTextAsync(extractStream, file.FileName, ct);
 
-        _logger.LogInformation("Text extracted from {FileName}, {CharCount} characters", 
+        _logger.LogInformation("Text extracted from {FileName}, {CharCount} characters",
             file.FileName, text.Length);
 
         return Ok(new { fileName = file.FileName, text, characterCount = text.Length });
@@ -148,10 +148,10 @@ public class DocumentsController : ControllerBase
         }
 
         var result = await _workflow.ClassifyAsync(request.Text, request.ProfileName, ct);
-        
+
         _logger.LogInformation("Text classified: profile={ProfileName}, category={Category}, confidence={Confidence}",
             request.ProfileName, result.Category, result.Confidence);
-        
+
         return Ok(result);
     }
 

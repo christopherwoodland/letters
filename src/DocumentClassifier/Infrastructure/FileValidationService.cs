@@ -15,7 +15,7 @@ public interface IFileValidationService
     /// <param name="fileName">Original file name with extension</param>
     /// <returns>True if valid, false otherwise</returns>
     Task<bool> ValidateFileContentAsync(Stream stream, string fileName);
-    
+
     /// <summary>
     /// Gets the detected MIME type based on file magic numbers.
     /// </summary>
@@ -32,19 +32,19 @@ public class FileValidationService : IFileValidationService
     {
         // PDF: %PDF
         { new byte[] { 0x25, 0x50, 0x44, 0x46 }, "application/pdf" },
-        
+
         // JPEG: FF D8 FF
         { new byte[] { 0xFF, 0xD8, 0xFF }, "image/jpeg" },
-        
+
         // PNG: 89 50 4E 47
         { new byte[] { 0x89, 0x50, 0x4E, 0x47 }, "image/png" },
-        
+
         // TIFF (little-endian): 49 49 2A 00
         { new byte[] { 0x49, 0x49, 0x2A, 0x00 }, "image/tiff" },
-        
+
         // TIFF (big-endian): 4D 4D 00 2A
         { new byte[] { 0x4D, 0x4D, 0x00, 0x2A }, "image/tiff" },
-        
+
         // DOCX/Office: 50 4B 03 04 (ZIP header) - followed by [Content_Types].xml
         { new byte[] { 0x50, 0x4B, 0x03, 0x04 }, "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
     };

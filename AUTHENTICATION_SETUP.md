@@ -72,7 +72,7 @@ az ad app create \
    ```bash
    # Using dotnet user-secrets
    dotnet user-secrets set "Authentication:ClientSecret" "your-secret-value"
-   
+
    # Or set environment variable
    export Authentication__ClientSecret="your-secret-value"
    ```

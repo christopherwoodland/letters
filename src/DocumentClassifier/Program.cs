@@ -94,7 +94,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Document Classifier API", Version = "v1" });
-    
+
     // Add JWT bearer authorization to Swagger if authentication is enabled
     if (authOptions.GetValue<bool>("Enabled"))
     {
@@ -105,7 +105,7 @@ builder.Services.AddSwaggerGen(c =>
             BearerFormat = "JWT",
             Description = "Azure AD Bearer token"
         });
-        
+
         c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
         {
             {
@@ -133,25 +133,25 @@ app.Use(async (context, next) =>
 {
     // Prevent MIME sniffing
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    
+
     // Prevent clickjacking
     context.Response.Headers["X-Frame-Options"] = "DENY";
-    
+
     // XSS protection (modern browsers use CSP, but keep for legacy)
     context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
-    
+
     // HSTS (HTTP Strict Transport Security)
     if (!app.Environment.IsDevelopment())
     {
         context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
     }
-    
+
     // Content Security Policy
     context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';";
-    
+
     // Referrer Policy
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    
+
     await next();
 });
 

@@ -19,7 +19,7 @@ public static class AuthorizationExtensions
         var upn = user?.FindFirst("upn")?.Value;
 
         var identifier = objectId ?? email ?? upn ?? "anonymous";
-        
+
         // Hash the identifier for privacy in logs
         using var sha256 = System.Security.Cryptography.SHA256.Create();
         var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(identifier));

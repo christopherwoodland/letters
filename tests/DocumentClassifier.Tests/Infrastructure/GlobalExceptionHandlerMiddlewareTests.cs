@@ -21,7 +21,7 @@ public class GlobalExceptionHandlerMiddlewareTests
             next: async (context) => throw new ArgumentNullException("testParam"),
             logger: CreateMockLogger()
         );
-        
+
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 
@@ -30,12 +30,12 @@ public class GlobalExceptionHandlerMiddlewareTests
 
         // Assert
         Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
-        
+
         // Verify error response
         context.Response.Body.Seek(0, SeekOrigin.Begin);
         var reader = new StreamReader(context.Response.Body);
         var body = await reader.ReadToEndAsync();
-        
+
         Assert.Contains("INVALID_REQUEST", body);
         Assert.Contains("parameter is missing", body);
     }
@@ -48,7 +48,7 @@ public class GlobalExceptionHandlerMiddlewareTests
             next: async (context) => throw new FileNotFoundException(),
             logger: CreateMockLogger()
         );
-        
+
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 
@@ -57,11 +57,11 @@ public class GlobalExceptionHandlerMiddlewareTests
 
         // Assert
         Assert.Equal(StatusCodes.Status404NotFound, context.Response.StatusCode);
-        
+
         context.Response.Body.Seek(0, SeekOrigin.Begin);
         var reader = new StreamReader(context.Response.Body);
         var body = await reader.ReadToEndAsync();
-        
+
         Assert.Contains("NOT_FOUND", body);
     }
 
@@ -73,7 +73,7 @@ public class GlobalExceptionHandlerMiddlewareTests
             next: async (context) => throw new TimeoutException(),
             logger: CreateMockLogger()
         );
-        
+
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 
@@ -82,11 +82,11 @@ public class GlobalExceptionHandlerMiddlewareTests
 
         // Assert
         Assert.Equal(StatusCodes.Status408RequestTimeout, context.Response.StatusCode);
-        
+
         context.Response.Body.Seek(0, SeekOrigin.Begin);
         var reader = new StreamReader(context.Response.Body);
         var body = await reader.ReadToEndAsync();
-        
+
         Assert.Contains("TIMEOUT", body);
     }
 
@@ -98,7 +98,7 @@ public class GlobalExceptionHandlerMiddlewareTests
             next: async (context) => throw new Exception("Unknown error"),
             logger: CreateMockLogger()
         );
-        
+
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 
@@ -107,11 +107,11 @@ public class GlobalExceptionHandlerMiddlewareTests
 
         // Assert
         Assert.Equal(StatusCodes.Status500InternalServerError, context.Response.StatusCode);
-        
+
         context.Response.Body.Seek(0, SeekOrigin.Begin);
         var reader = new StreamReader(context.Response.Body);
         var body = await reader.ReadToEndAsync();
-        
+
         // Verify no stack trace is exposed
         Assert.DoesNotContain("Exception", body);
         Assert.DoesNotContain("Unknown error", body);
@@ -126,7 +126,7 @@ public class GlobalExceptionHandlerMiddlewareTests
             next: async (context) => throw new Exception("Test"),
             logger: CreateMockLogger()
         );
-        
+
         var context = new DefaultHttpContext();
         context.Response.Body = new MemoryStream();
 
@@ -136,11 +136,11 @@ public class GlobalExceptionHandlerMiddlewareTests
         // Assert
         Assert.NotNull(context.Response.ContentType);
         Assert.StartsWith("application/json", context.Response.ContentType);
-        
+
         context.Response.Body.Seek(0, SeekOrigin.Begin);
         var reader = new StreamReader(context.Response.Body);
         var body = await reader.ReadToEndAsync();
-        
+
         // Verify it's valid JSON with error fields
         Assert.Contains("\"message\"", body);
         Assert.Contains("\"errorCode\"", body);
@@ -155,7 +155,7 @@ public class GlobalExceptionHandlerMiddlewareTests
             next: async (context) => { /* No exception */ },
             logger: CreateMockLogger()
         );
-        
+
         var context = new DefaultHttpContext();
 
         // Act & Assert (should not throw)
