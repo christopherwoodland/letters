@@ -1,0 +1,14 @@
+.dockerignore
+bin/
+obj/
+.git
+.gitignore
+.vscode/
+.vs/
+*.user
+*.suo
+node_modules/
+dist/
+.env
+.env.local
+*.log

@@ -1,3 +1,4 @@
+using Azure.Core;
 using Azure.Storage.Blobs;
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,7 @@ public class DocumentStorageService : IDocumentStorageService
     private readonly BlobContainerClient? _blobContainer;
     private readonly ILogger<DocumentStorageService> _logger;
 
-    public DocumentStorageService(IOptions<StorageOptions> options, ILogger<DocumentStorageService> logger)
+    public DocumentStorageService(IOptions<StorageOptions> options, TokenCredential credential, ILogger<DocumentStorageService> logger)
     {
         _options = options.Value;
         _logger = logger;
@@ -39,7 +40,7 @@ public class DocumentStorageService : IDocumentStorageService
         }
         else if (!string.IsNullOrEmpty(_options.BlobAccountUri))
         {
-            var serviceClient = new BlobServiceClient(new Uri(_options.BlobAccountUri), new DefaultAzureCredential());
+            var serviceClient = new BlobServiceClient(new Uri(_options.BlobAccountUri), credential);
             _blobContainer = serviceClient.GetBlobContainerClient(_options.BlobContainerName);
         }
     }

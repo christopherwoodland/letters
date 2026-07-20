@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.DocumentIntelligence;
+using Azure.Core;
 using Azure.Identity;
 using DocumentClassifier.Models;
 using Microsoft.Extensions.Logging;
@@ -30,19 +31,29 @@ public interface ITextExtractionService
 
 public class TextExtractionService : ITextExtractionService
 {
-    private readonly DocumentIntelligenceClient _client;
+    private readonly DocumentIntelligenceClient? _client;
     private readonly DocumentIntelligenceOptions _options;
     private readonly ResilienceOptions _resilienceOptions;
     private readonly ILogger<TextExtractionService> _logger;
+    private readonly bool _documentIntelligenceConfigured;
 
     public TextExtractionService(
         IOptions<DocumentIntelligenceOptions> options,
         IOptions<ResilienceOptions> resilienceOptions,
+        TokenCredential credential,
         ILogger<TextExtractionService> logger)
     {
         _logger = logger;
         _options = options.Value;
         _resilienceOptions = resilienceOptions.Value;
+
+        _documentIntelligenceConfigured = !string.IsNullOrWhiteSpace(_options.Endpoint);
+
+        if (!_documentIntelligenceConfigured)
+        {
+            _logger.LogWarning("Document Intelligence endpoint is not configured. Falling back to local extraction only where possible.");
+            return;
+        }
 
         if (!string.IsNullOrEmpty(_options.ApiKey))
         {
@@ -50,7 +61,7 @@ public class TextExtractionService : ITextExtractionService
         }
         else
         {
-            _client = new DocumentIntelligenceClient(new Uri(_options.Endpoint), new DefaultAzureCredential());
+            _client = new DocumentIntelligenceClient(new Uri(_options.Endpoint), credential);
         }
     }
 
@@ -65,16 +76,21 @@ public class TextExtractionService : ITextExtractionService
 
         var method = _options.ExtractionMethod.ToLowerInvariant();
         var isPdf = fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+        var isTxt = fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase);
 
         string text;
 
-        if (method == "local" && isPdf)
+        if (isTxt)
+        {
+            text = System.Text.Encoding.UTF8.GetString(fileBytes);
+        }
+        else if (method == "local" && isPdf)
         {
             text = ExtractTextLocal(fileBytes, fileName);
         }
         else if (method == "document_intelligence")
         {
-            text = await ExtractWithDocumentIntelligenceAsync(fileBytes, ct);
+            text = await ExtractWithDocumentIntelligenceOrFallbackAsync(fileBytes, fileName, isPdf, ct);
         }
         else // "auto" - try local first for PDFs, fall back to Document Intelligence
         {
@@ -87,13 +103,13 @@ public class TextExtractionService : ITextExtractionService
                         "Local extraction yielded {Quality} for {FileName} ({Chars} chars), falling back to Document Intelligence",
                         text.Length < _options.MinLocalExtractionChars ? "too few chars" : "garbled text",
                         fileName, text.Length);
-                    text = await ExtractWithDocumentIntelligenceAsync(fileBytes, ct);
+                    text = await ExtractWithDocumentIntelligenceOrFallbackAsync(fileBytes, fileName, isPdf, ct);
                 }
             }
             else
             {
                 // Non-PDF files go straight to Document Intelligence (handles images, docx, etc.)
-                text = await ExtractWithDocumentIntelligenceAsync(fileBytes, ct);
+                text = await ExtractWithDocumentIntelligenceOrFallbackAsync(fileBytes, fileName, isPdf, ct);
             }
         }
 
@@ -138,6 +154,9 @@ public class TextExtractionService : ITextExtractionService
     /// </summary>
     private async Task<string> ExtractWithDocumentIntelligenceAsync(byte[] fileBytes, CancellationToken ct)
     {
+        if (_client is null)
+            throw new InvalidOperationException("Document Intelligence client is unavailable because endpoint is not configured.");
+
         return await Resilience.ExecuteWithRetryAsync(async retryCt =>
         {
             var binaryData = BinaryData.FromBytes(fileBytes);
@@ -151,6 +170,30 @@ public class TextExtractionService : ITextExtractionService
             var result = operation.Value;
             return result.Content;
         }, _logger, "Document Intelligence extraction", _resilienceOptions, ct);
+    }
+
+    private async Task<string> ExtractWithDocumentIntelligenceOrFallbackAsync(byte[] fileBytes, string fileName, bool isPdf, CancellationToken ct)
+    {
+        if (_documentIntelligenceConfigured)
+        {
+            try
+            {
+                return await ExtractWithDocumentIntelligenceAsync(fileBytes, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Document Intelligence extraction failed for {FileName}. Falling back.", fileName);
+            }
+        }
+
+        if (isPdf)
+        {
+            _logger.LogWarning("Using local PDF extraction fallback for {FileName}.", fileName);
+            return ExtractTextLocal(fileBytes, fileName);
+        }
+
+        _logger.LogWarning("No local extractor available for {FileName}. Returning empty extracted text.", fileName);
+        return string.Empty;
     }
 
     /// <summary>

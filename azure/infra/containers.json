@@ -1,0 +1,181 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.43.8.12551",
+      "templateHash": "3050845394163720141"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "prod"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "apiVersion": "2023-07-01",
+      "name": "[format('dcmcp{0}', uniqueString(resourceGroup().id))]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Basic"
+      },
+      "properties": {
+        "adminUserEnabled": true,
+        "publicNetworkAccess": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2023-05-01",
+      "name": "document-classifier-api",
+      "location": "[parameters('location')]",
+      "properties": {
+        "containers": [
+          {
+            "name": "api",
+            "properties": {
+              "image": "[format('{0}/document-classifier:latest', reference(resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id))), '2023-07-01').loginServer)]",
+              "resources": {
+                "requests": {
+                  "cpu": 1,
+                  "memoryInGB": 1
+                }
+              },
+              "ports": [
+                {
+                  "port": 80,
+                  "protocol": "TCP"
+                }
+              ],
+              "environmentVariables": [
+                {
+                  "name": "ASPNETCORE_ENVIRONMENT",
+                  "value": "[parameters('environmentName')]"
+                },
+                {
+                  "name": "AZURE_TENANT_ID",
+                  "value": "[subscription().tenantId]"
+                }
+              ]
+            }
+          }
+        ],
+        "osType": "Linux",
+        "ipAddress": {
+          "type": "Public",
+          "ports": [
+            {
+              "port": 80,
+              "protocol": "TCP"
+            }
+          ]
+        },
+        "restartPolicy": "OnFailure"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id)))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2023-05-01",
+      "name": "doc-classifier-mcp-env",
+      "location": "[parameters('location')]",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2023-05-01",
+      "name": "document-classifier-mcp",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', 'doc-classifier-mcp-env')]",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 80,
+            "allowInsecure": false,
+            "traffic": [
+              {
+                "latestRevision": true,
+                "weight": 100
+              }
+            ]
+          },
+          "secrets": [
+            {
+              "name": "registry-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id))), '2023-07-01').passwords[0].value]"
+            }
+          ],
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id))), '2023-07-01').loginServer]",
+              "username": "[if(reference(resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id))), '2023-07-01').adminUserEnabled, listCredentials(resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id))), '2023-07-01').username, '')]",
+              "passwordSecretRef": "registry-password"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "mcp",
+              "image": "[format('{0}/document-classifier-mcp:latest', reference(resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id))), '2023-07-01').loginServer)]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "ASPNETCORE_ENVIRONMENT",
+                  "value": "[parameters('environmentName')]"
+                },
+                {
+                  "name": "FUNCTIONS_WORKER_RUNTIME",
+                  "value": "dotnet-isolated"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 5
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', 'doc-classifier-mcp-env')]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id)))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "containerRegistryName": {
+      "type": "string",
+      "value": "[format('dcmcp{0}', uniqueString(resourceGroup().id))]"
+    },
+    "containerRegistryLoginServer": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('dcmcp{0}', uniqueString(resourceGroup().id))), '2023-07-01').loginServer]"
+    },
+    "apiContainerFQDN": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerInstance/containerGroups', 'document-classifier-api'), '2023-05-01').ipAddress.fqdn]"
+    },
+    "mcpContainerAppUrl": {
+      "type": "string",
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', 'document-classifier-mcp'), '2023-05-01').configuration.ingress.fqdn)]"
+    }
+  }
+}

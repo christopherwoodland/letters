@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Azure.AI.OpenAI;
+using Azure.Core;
 using Azure.Identity;
 using DocumentClassifier.Models;
 using Microsoft.Extensions.Logging;
@@ -44,14 +45,16 @@ public record ClassificationExample
 public class RagService : IRagService
 {
     private readonly ISearchIndexingService _search;
-    private readonly ChatClient _chatClient;
+    private readonly ChatClient? _chatClient;
     private readonly ResilienceOptions _resilienceOptions;
     private readonly ILogger<RagService> _logger;
+    private readonly bool _isConfigured;
 
     public RagService(
         ISearchIndexingService search,
         IOptions<AzureOpenAIOptions> openAIOptions,
         IOptions<ResilienceOptions> resilienceOptions,
+        TokenCredential credential,
         ILogger<RagService> logger)
     {
         _search = search;
@@ -59,6 +62,13 @@ public class RagService : IRagService
         _logger = logger;
 
         var opts = openAIOptions.Value;
+        _isConfigured = !string.IsNullOrWhiteSpace(opts.Endpoint) && !string.IsNullOrWhiteSpace(opts.DeploymentName);
+        if (!_isConfigured)
+        {
+            _logger.LogWarning("Azure OpenAI is not configured. RAG responses will use retrieval-only fallback.");
+            return;
+        }
+
         AzureOpenAIClient aoaiClient;
         if (!string.IsNullOrEmpty(opts.ApiKey))
         {
@@ -66,7 +76,7 @@ public class RagService : IRagService
         }
         else
         {
-            aoaiClient = new AzureOpenAIClient(new Uri(opts.Endpoint), new DefaultAzureCredential());
+            aoaiClient = new AzureOpenAIClient(new Uri(opts.Endpoint), credential);
         }
         _chatClient = aoaiClient.GetChatClient(opts.DeploymentName);
     }
@@ -84,6 +94,21 @@ public class RagService : IRagService
             {
                 Answer = "No relevant documents found in the index to answer this question.",
                 Sources = new()
+            };
+        }
+
+        if (!_isConfigured || _chatClient is null)
+        {
+            var fallbackAnswer = "Azure OpenAI is not configured. Retrieved relevant documents only.";
+            return new RagResponse
+            {
+                Answer = fallbackAnswer,
+                Sources = searchResults.Select(doc => new RagSource
+                {
+                    FileName = doc.FileName,
+                    Category = doc.Category ?? "unclassified",
+                    Snippet = doc.Content[..Math.Min(doc.Content.Length, 200)]
+                }).ToList()
             };
         }
 

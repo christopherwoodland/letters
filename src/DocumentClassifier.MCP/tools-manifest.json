@@ -1,0 +1,179 @@
+{
+  "name": "Document Classifier MCP",
+  "version": "1.0.0",
+  "description": "MCP server for document classification, search, and workflow exposure",
+  "tools": [
+    {
+      "name": "list_profiles",
+      "description": "Lists all available classification profiles",
+      "method": "POST",
+      "endpoint": "/api/mcp/tools/list_profiles",
+      "parameters": [],
+      "exampleRequest": {
+        "method": "POST",
+        "headers": {
+          "x-functions-key": "<function-key>"
+        }
+      },
+      "exampleResponse": {
+        "success": true,
+        "data": {
+          "profiles": [
+            {
+              "name": "relief_request_binary",
+              "description": "Classifies whether a document contains a request for relief"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "classify_text",
+      "description": "Classifies text using a specified profile with few-shot examples",
+      "method": "POST",
+      "endpoint": "/api/mcp/tools/classify_text",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "string",
+          "description": "The text to classify",
+          "required": true
+        },
+        {
+          "name": "profileName",
+          "type": "string",
+          "description": "Name of the classification profile to use",
+          "required": true
+        },
+        {
+          "name": "exampleCount",
+          "type": "integer",
+          "description": "Number of few-shot examples to include (default: 3)",
+          "required": false,
+          "default": 3
+        }
+      ],
+      "exampleRequest": {
+        "method": "POST",
+        "headers": {
+          "x-functions-key": "<function-key>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "text": "I respectfully request that the court grant me more time to respond",
+          "profileName": "relief_request_binary",
+          "exampleCount": 3
+        }
+      },
+      "exampleResponse": {
+        "success": true,
+        "data": {
+          "profileName": "relief_request_binary",
+          "category": "relief_requested",
+          "confidence": 0.95,
+          "reasoning": "The document contains explicit language requesting relief from the court",
+          "metadata": {
+            "requested_relief_action": "time_extension",
+            "tone": "formal",
+            "confidence_notes": "High confidence due to explicit relief language"
+          }
+        }
+      }
+    },
+    {
+      "name": "search_documents",
+      "description": "Semantic search across indexed documents",
+      "method": "POST",
+      "endpoint": "/api/mcp/tools/search_documents",
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "description": "Search query using natural language",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "description": "Optional filter by classification category",
+          "required": false
+        },
+        {
+          "name": "topResults",
+          "type": "integer",
+          "description": "Maximum number of results to return (default: 5)",
+          "required": false,
+          "default": 5
+        }
+      ],
+      "exampleRequest": {
+        "method": "POST",
+        "headers": {
+          "x-functions-key": "<function-key>",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "query": "request for time extension",
+          "category": "relief_requested",
+          "topResults": 5
+        }
+      },
+      "exampleResponse": {
+        "success": true,
+        "data": {
+          "count": 2,
+          "results": [
+            {
+              "id": "doc-123",
+              "fileName": "motion_001.pdf",
+              "category": "relief_requested",
+              "confidence": 0.92,
+              "contentPreview": "I respectfully request additional time to file..."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "get_review_queue",
+      "description": "Retrieve documents that need human review (confidence below threshold)",
+      "method": "POST",
+      "endpoint": "/api/mcp/tools/get_review_queue",
+      "parameters": [],
+      "exampleRequest": {
+        "method": "POST",
+        "headers": {
+          "x-functions-key": "<function-key>"
+        }
+      },
+      "exampleResponse": {
+        "success": true,
+        "data": {
+          "count": 3,
+          "items": [
+            {
+              "documentId": "doc-456",
+              "fileName": "unclear_filing.pdf",
+              "profile": "relief_request_binary",
+              "submittedAt": "2026-06-22T17:30:00Z",
+              "contentPreview": "This document may contain ambiguous language..."
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "authentication": {
+    "type": "function_key",
+    "header": "x-functions-key",
+    "location": "Azure Key Vault"
+  },
+  "baseUrl": "https://<function-app-name>.azurewebsites.net",
+  "deployment": {
+    "type": "azure_functions",
+    "runtime": "dotnet-isolated",
+    "framework": ".NET 9.0",
+    "infrastructure": "bicep",
+    "sku": "Consumption"
+  }
+}

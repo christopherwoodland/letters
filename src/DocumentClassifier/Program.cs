@@ -2,6 +2,8 @@ using DocumentClassifier.Services;
 using DocumentClassifier.Workflow;
 using DocumentClassifier.Infrastructure;
 using Microsoft.Extensions.Options;
+using Azure.Identity;
+using Azure.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +14,16 @@ builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Sto
 builder.Services.Configure<SearchOptions>(builder.Configuration.GetSection("Search"));
 builder.Services.Configure<WorkflowOptions>(builder.Configuration.GetSection("Workflow"));
 builder.Services.Configure<ResilienceOptions>(builder.Configuration.GetSection("Resilience"));
+
+// Shared Azure credential
+var tenantId = builder.Configuration["Azure:TenantId"];
+builder.Services.AddSingleton<TokenCredential>(_ =>
+{
+    var options = new DefaultAzureCredentialOptions();
+    if (!string.IsNullOrEmpty(tenantId))
+        options.TenantId = tenantId;
+    return new DefaultAzureCredential(options);
+});
 
 // Services
 builder.Services.AddSingleton<IProfileStore, InMemoryProfileStore>();

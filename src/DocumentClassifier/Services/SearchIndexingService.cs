@@ -1,4 +1,5 @@
 using Azure;
+using Azure.Core;
 using Azure.Identity;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
@@ -45,32 +46,41 @@ public class IndexedDocument
 
 public class SearchIndexingService : ISearchIndexingService
 {
-    private readonly SearchClient _searchClient;
-    private readonly SearchIndexClient _indexClient;
+    private readonly SearchClient? _searchClient;
+    private readonly SearchIndexClient? _indexClient;
     private readonly SearchOptions _options;
     private readonly ResilienceOptions _resilienceOptions;
     private readonly ILogger<SearchIndexingService> _logger;
+    private readonly bool _isConfigured;
 
     public SearchIndexingService(
         IOptions<SearchOptions> options,
         IOptions<ResilienceOptions> resilienceOptions,
+        TokenCredential credential,
         ILogger<SearchIndexingService> logger)
     {
         _options = options.Value;
         _resilienceOptions = resilienceOptions.Value;
         _logger = logger;
 
+        if (string.IsNullOrWhiteSpace(_options.Endpoint))
+        {
+            _isConfigured = false;
+            _logger.LogInformation("Search endpoint not configured. Search indexing and retrieval will be disabled.");
+            return;
+        }
+
+        _isConfigured = true;
         var endpoint = new Uri(_options.Endpoint);
 
         if (!string.IsNullOrEmpty(_options.ApiKey))
         {
-            var credential = new AzureKeyCredential(_options.ApiKey);
-            _indexClient = new SearchIndexClient(endpoint, credential);
-            _searchClient = new SearchClient(endpoint, _options.IndexName, credential);
+            var apiKeyCredential = new AzureKeyCredential(_options.ApiKey);
+            _indexClient = new SearchIndexClient(endpoint, apiKeyCredential);
+            _searchClient = new SearchClient(endpoint, _options.IndexName, apiKeyCredential);
         }
         else
         {
-            var credential = new DefaultAzureCredential();
             _indexClient = new SearchIndexClient(endpoint, credential);
             _searchClient = new SearchClient(endpoint, _options.IndexName, credential);
         }
@@ -78,6 +88,12 @@ public class SearchIndexingService : ISearchIndexingService
 
     public async Task EnsureIndexExistsAsync(CancellationToken ct = default)
     {
+        if (!_isConfigured || _indexClient is null)
+        {
+            _logger.LogDebug("EnsureIndexExistsAsync skipped because search is not configured.");
+            return;
+        }
+
         var fields = new List<SearchField>
         {
             new SimpleField("Id", SearchFieldDataType.String) { IsKey = true, IsFilterable = true },
@@ -137,6 +153,12 @@ public class SearchIndexingService : ISearchIndexingService
 
     public async Task IndexDocumentAsync(IndexedDocument document, CancellationToken ct = default)
     {
+        if (!_isConfigured || _searchClient is null)
+        {
+            _logger.LogDebug("IndexDocumentAsync skipped for {Id} because search is not configured.", document.Id);
+            return;
+        }
+
         // Chunk large documents (>8000 chars) for better retrieval
         var chunks = ChunkContent(document.Content, document.Id, maxChunkSize: 4000, overlap: 200);
 
@@ -172,6 +194,12 @@ public class SearchIndexingService : ISearchIndexingService
 
     public async Task<List<IndexedDocument>> SearchSimilarAsync(string query, string? category = null, int top = 5, CancellationToken ct = default)
     {
+        if (!_isConfigured || _searchClient is null)
+        {
+            _logger.LogDebug("SearchSimilarAsync skipped because search is not configured.");
+            return new List<IndexedDocument>();
+        }
+
         var searchOptions = new Azure.Search.Documents.SearchOptions
         {
             Size = top,

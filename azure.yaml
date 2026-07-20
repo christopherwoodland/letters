@@ -1,0 +1,20 @@
+name: document-classifier-mcp
+metadata:
+  template: document-classifier-mcp-template
+  description: Document Classification MCP Server on Azure Functions
+
+services:
+  mcp-function:
+    project:
+      path: src/DocumentClassifier.MCP
+      language: dotnet
+    host: function
+    module: mcp_function
+    infra:
+      - azure/infra/mcp-function.bicep
+
+env:
+  - name: AZURE_ENV_NAME
+    default: dev
+  - name: AZURE_LOCATION
+    default: eastus

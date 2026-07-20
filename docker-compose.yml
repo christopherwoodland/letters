@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Main API
+  api:
+    build:
+      context: .
+      dockerfile: src/DocumentClassifier/Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      AZURE_TENANT_ID: "16b3c013-d300-468d-ac64-7eda0820b6d3"
+      Search__Endpoint: "https://aisearchcw001.search.windows.net"
+      Search__IndexName: "court-documents"
+      AzureOpenAI__Endpoint: "https://bhs-development-public-foundry-r.services.ai.azure.com/"
+      AzureOpenAI__DeploymentName: "gpt-4.1"
+      DocumentIntelligence__Endpoint: "https://bhs-development-public-foundry-r.cognitiveservices.azure.com/"
+      DocumentIntelligence__ExtractionMethod: "document_intelligence"
+      Storage__LocalStoragePath: "/app/documents"
+      Storage__MaxUploadBytes: "20971520"
+      Resilience__MaxRetries: "3"
+      Resilience__BaseDelayMs: "250"
+      Resilience__MaxDelayMs: "2000"
+      Resilience__OperationTimeoutSeconds: "90"
+    volumes:
+      - ./documents:/app/documents
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # MCP Functions
+  mcp-functions:
+    build:
+      context: .
+      dockerfile: src/DocumentClassifier.MCP/Dockerfile
+    ports:
+      - "7071:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      AzureWebJobsSecretStorageType: "files"
+      FUNCTIONS_WORKER_RUNTIME: "dotnet-isolated"
+      AZURE_TENANT_ID: "16b3c013-d300-468d-ac64-7eda0820b6d3"
+      Search__Endpoint: "https://aisearchcw001.search.windows.net"
+      Search__IndexName: "court-documents"
+      AzureOpenAI__Endpoint: "https://bhs-development-public-foundry-r.services.ai.azure.com/"
+      AzureOpenAI__DeploymentName: "gpt-4.1"
+      DocumentIntelligence__Endpoint: "https://bhs-development-public-foundry-r.cognitiveservices.azure.com/"
+      DocumentIntelligence__ExtractionMethod: "document_intelligence"
+      Storage__LocalStoragePath: "/app/documents"
+    volumes:
+      - ./documents:/app/documents
+
+networks:
+  default:
+    name: doc-classifier-network
