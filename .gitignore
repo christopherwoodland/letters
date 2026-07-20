@@ -1,28 +1,147 @@
-# .NET build outputs
+# ====================
+# .NET Build Artifacts
+# ====================
 bin/
 obj/
 *.user
 *.suo
 .vs/
+*.csproj.user
+*.csproj.filters
+*.vcxproj.user
+*.sln.docstates
 
-# Secrets – never commit Development settings (may contain API keys)
+# ====================
+# Secrets & Credentials
+# ====================
+# Development settings may contain API keys, connection strings, credentials
 appsettings.Development.json
+appsettings.*.json
+!appsettings.json
 
-# Azurite local storage emulator
+# User Secrets (local development credentials)
+.secrets/
+*.secrets.json
+secrets.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.test.local
+
+# AWS credentials
+.aws/
+~/.aws/
+
+# Azure
+.azure/
+azure-credentials.json
+
+# VS Code settings with secrets
+.vscode/settings.json
+.vscode/extensions.json
+.vscode/launch.json
+
+# ====================
+# Azure Local Emulator
+# ====================
 __azurite_db_blob__.json
 __azurite_db_blob_extent__.json
 __blobstorage__/
 
+# ====================
+# Application Data
+# ====================
 # Local document storage
 src/DocumentClassifier/documents/
+src/DocumentClassifier/logs.txt
 
-# Node / UI
+# Review queue and temp storage
+src/DocumentClassifier/review-queue.json
+src/DocumentClassifier/temp/
+
+# Input test files (may contain large/sensitive PDFs)
+input/
+output/
+
+# ====================
+# Node / Frontend Build
+# ====================
 node_modules/
 dist/
+build/
+coverage/
+*.tsbuildinfo
+.next/
+ui/dist/
+ui/.vite/
 
-# OS files
-Thumbs.db
+# ====================
+# IDE & Editor Files
+# ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
+*.sublime-workspace
+*.sublime-project
 
-# Input test files (large PDFs)
-input/
+# ====================
+# Testing & Coverage
+# ====================
+/TestResults/
+.coverage
+*.opencover.xml
+*.lcov
+coverage/
+
+# ====================
+# Runtime & Temp Files
+# ====================
+*.log
+*.tmp
+*.tmp.*
+.temp/
+temp/
+
+# ====================
+# OS-Specific Files
+# ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# ====================
+# Package Manager
+# ====================
+package-lock.json
+yarn.lock
+.pnp
+.pnp.js
+
+# ====================
+# Build Outputs
+# ====================
+dist/
+build/
+.webpack/
+
+# ====================
+# Docker
+# ====================
+docker-compose.override.yml
+
+# ====================
+# Generated Files
+# ====================
+*.backup
+*.bak
+*.orig
