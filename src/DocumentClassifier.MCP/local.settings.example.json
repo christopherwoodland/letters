@@ -1,0 +1,24 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "ASPNETCORE_ENVIRONMENT": "Development",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
+    "Search__Endpoint": "",
+    "Search__ApiKey": "",
+    "Search__IndexName": "court-documents",
+    "AzureOpenAI__Endpoint": "https://your-openai-resource.openai.azure.com/",
+    "AzureOpenAI__DeploymentName": "gpt-4o",
+    "AzureOpenAI__ApiKey": "",
+    "DocumentIntelligence__Endpoint": "https://your-document-intelligence-resource.cognitiveservices.azure.com/",
+    "DocumentIntelligence__ApiKey": "",
+    "DocumentIntelligence__ExtractionMethod": "document_intelligence",
+    "Storage__LocalStoragePath": "./documents",
+    "Storage__MaxUploadBytes": "20971520",
+    "Resilience__MaxRetries": "3",
+    "Resilience__BaseDelayMs": "250",
+    "Resilience__MaxDelayMs": "2000",
+    "Resilience__OperationTimeoutSeconds": "90"
+  }
+}

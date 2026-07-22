@@ -4,6 +4,14 @@ This guide explains how to configure secrets and sensitive data locally for deve
 
 ## Quick Start
 
+Bootstrap templates are included:
+- `src/DocumentClassifier/appsettings.Development.example.json`
+- `src/DocumentClassifier.MCP/local.settings.example.json`
+- `.env.example`
+- `src/DocumentClassifier.MCP/.env.example`
+
+Copy these to local files and fill in your own values (do not commit filled files).
+
 ### Prerequisites
 - .NET 9.0 SDK
 - Git

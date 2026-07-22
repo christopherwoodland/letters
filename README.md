@@ -158,6 +158,12 @@ This path deploys the `mcp-function` service defined in `azure.yaml` and `azure/
 - Full deployment guide: `DEPLOYMENT.md`
 - Quick deploy cheat sheet: `QUICK_DEPLOY.md`
 
+Example templates:
+- `src/DocumentClassifier/appsettings.Development.example.json`
+- `src/DocumentClassifier.MCP/local.settings.example.json`
+- `.env.example`
+- `src/DocumentClassifier.MCP/.env.example`
+
 ## Testing
 
 Run tests:
