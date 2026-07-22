@@ -2,15 +2,21 @@ import React, { useState, useEffect } from 'react'
 import { documentAPI } from '../services/api'
 import './Documents.css'
 
-export default function Documents({ refreshTrigger }) {
+export default function Documents({ refreshTrigger, enableRagIndexing }) {
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [expandedId, setExpandedId] = useState(null)
 
   useEffect(() => {
+    if (!enableRagIndexing) {
+      setDocuments([])
+      setError('')
+      setLoading(false)
+      return
+    }
     loadDocuments()
-  }, [refreshTrigger])
+  }, [refreshTrigger, enableRagIndexing])
 
   const loadDocuments = async () => {
     setLoading(true)
@@ -30,6 +36,19 @@ export default function Documents({ refreshTrigger }) {
 
   if (loading) {
     return <div className="card"><span className="loading"></span> Loading documents...</div>
+  }
+
+  if (!enableRagIndexing) {
+    return (
+      <div className="documents-page">
+        <div className="card">
+          <h2>Documents</h2>
+          <p className="page-description">
+            RAG indexing is currently disabled, so there is no indexed document list.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

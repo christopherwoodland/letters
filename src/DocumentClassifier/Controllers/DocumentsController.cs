@@ -13,6 +13,7 @@ public class DocumentsController : ControllerBase
     private readonly IDocumentWorkflow _workflow;
     private readonly IReviewQueueStore _reviewQueue;
     private readonly DocumentClassificationWorkflowFactory _workflowFactory;
+    private readonly WorkflowOptions _workflowOptions;
     private readonly StorageOptions _storageOptions;
     private readonly IFileValidationService _fileValidation;
     private readonly ILogger<DocumentsController> _logger;
@@ -21,6 +22,7 @@ public class DocumentsController : ControllerBase
         IDocumentWorkflow workflow,
         IReviewQueueStore reviewQueue,
         DocumentClassificationWorkflowFactory workflowFactory,
+        Microsoft.Extensions.Options.IOptions<WorkflowOptions> workflowOptions,
         Microsoft.Extensions.Options.IOptions<StorageOptions> storageOptions,
         IFileValidationService fileValidation,
         ILogger<DocumentsController> logger)
@@ -28,6 +30,7 @@ public class DocumentsController : ControllerBase
         _workflow = workflow;
         _reviewQueue = reviewQueue;
         _workflowFactory = workflowFactory;
+        _workflowOptions = workflowOptions.Value;
         _storageOptions = storageOptions.Value;
         _fileValidation = fileValidation;
         _logger = logger;
@@ -280,6 +283,9 @@ public class DocumentsController : ControllerBase
         return Ok(new
         {
             confidenceThreshold = threshold,
+            enableRagExamples = _workflowOptions.EnableRagExamples,
+            enableRagIndexing = _workflowOptions.EnableRagIndexing,
+            enableRagQuery = _workflowOptions.EnableRagQuery,
             graph = mermaid
         });
     }

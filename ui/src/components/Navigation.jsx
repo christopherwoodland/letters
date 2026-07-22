@@ -9,12 +9,14 @@ const MENU_ITEMS = [
   { id: 'profiles', label: 'Profiles', icon: '⚙' },
 ]
 
-export default function Navigation({ currentPage, onNavigate }) {
+export default function Navigation({ currentPage, onNavigate, enableRagIndexing }) {
+  const items = MENU_ITEMS.filter(item => item.id !== 'documents' || enableRagIndexing)
+
   return (
     <nav className="navigation">
       <div className="nav-section-label">Workflow</div>
       <div className="nav-menu">
-        {MENU_ITEMS.map(item => (
+        {items.map(item => (
           <button
             key={item.id}
             className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
