@@ -77,7 +77,7 @@ export default function Upload({ onSuccess }) {
 
       const data = response.data
       if (data.classification?.category) addProgress(`Classified as: ${data.classification.category} (${(data.classification.confidence * 100).toFixed(1)}%)`)
-      if (data.status === 'Classified') addProgress('Document indexed for search')
+      if (data.status === 'Classified') addProgress('Document classified successfully')
       else addProgress('Document sent to review queue (low confidence)')
 
       setSuccess('Document processed successfully!')
@@ -184,7 +184,7 @@ export default function Upload({ onSuccess }) {
               <div className="result-item">
                 <span className="label">Status</span>
                 <span className={`value ${result.status === 'Classified' ? 'success' : 'warning'}`}>
-                  {result.status === 'Classified' ? 'Indexed' : 'Pending Review'}
+                  {result.status === 'Classified' ? 'Classified' : 'Pending Review'}
                 </span>
               </div>
             </div>
