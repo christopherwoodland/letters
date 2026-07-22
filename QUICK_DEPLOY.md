@@ -10,7 +10,7 @@ Fast reference for local run and Azure deployment.
 ./run-dev.ps1
 ```
 
-API: `http://localhost:5100`  
+API: `http://localhost:5100`
 Swagger: `http://localhost:5100/swagger`
 
 ### API + MCP with Docker
@@ -19,7 +19,7 @@ Swagger: `http://localhost:5100/swagger`
 docker compose up --build
 ```
 
-API: `http://localhost:5000`  
+API: `http://localhost:5000`
 MCP tools base: `http://localhost:7071/api/mcp/tools`
 
 ### UI + API

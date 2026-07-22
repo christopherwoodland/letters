@@ -163,7 +163,7 @@ Location:          $Location
 [USEFUL COMMANDS]
    View logs:
      az container logs --resource-group $ResourceGroup --name document-classifier-api
-   
+
    Cleanup:
      az group delete --name $ResourceGroup --yes --no-wait
 
