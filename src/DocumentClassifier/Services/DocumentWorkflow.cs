@@ -73,24 +73,29 @@ public class DocumentWorkflow : IDocumentWorkflow
         var profile = _profileStore.GetProfile(profileName)
             ?? throw new InvalidOperationException($"Classification profile '{profileName}' not found.");
 
-        var examples = await _rag.GetClassificationExamplesAsync(text, profileName, count: 3, ct);
+        var examples = _options.EnableRagExamples
+            ? await _rag.GetClassificationExamplesAsync(text, profileName, count: 3, ct)
+            : new List<ClassificationExample>();
         var classification = await _classification.ClassifyAsync(text, profile, examples, ct);
 
         // Step 4: Route based on confidence
         if (classification.Confidence >= _options.ConfidenceThreshold)
         {
             // High confidence → index directly
-            await _search.IndexDocumentAsync(new IndexedDocument
+            if (_options.EnableRagIndexing)
             {
-                Id = documentId,
-                FileName = fileName,
-                Content = text,
-                Category = classification.Category,
-                ProfileName = profileName,
-                Confidence = classification.Confidence,
-                Reasoning = classification.Reasoning,
-                IndexedAt = DateTimeOffset.UtcNow
-            }, ct);
+                await _search.IndexDocumentAsync(new IndexedDocument
+                {
+                    Id = documentId,
+                    FileName = fileName,
+                    Content = text,
+                    Category = classification.Category,
+                    ProfileName = profileName,
+                    Confidence = classification.Confidence,
+                    Reasoning = classification.Reasoning,
+                    IndexedAt = DateTimeOffset.UtcNow
+                }, ct);
+            }
 
             _logger.LogInformation("Workflow complete for {FileName}: {Category} ({Confidence:P0})",
                 fileName, classification.Category, classification.Confidence);
@@ -107,17 +112,20 @@ public class DocumentWorkflow : IDocumentWorkflow
         else
         {
             // Low confidence → human review
-            await _search.IndexDocumentAsync(new IndexedDocument
+            if (_options.EnableRagIndexing)
             {
-                Id = documentId,
-                FileName = fileName,
-                Content = text,
-                Category = $"REVIEW:{classification.Category}",
-                ProfileName = profileName,
-                Confidence = classification.Confidence,
-                Reasoning = $"[LOW CONFIDENCE - NEEDS HUMAN REVIEW] {classification.Reasoning}",
-                IndexedAt = DateTimeOffset.UtcNow
-            }, ct);
+                await _search.IndexDocumentAsync(new IndexedDocument
+                {
+                    Id = documentId,
+                    FileName = fileName,
+                    Content = text,
+                    Category = $"REVIEW:{classification.Category}",
+                    ProfileName = profileName,
+                    Confidence = classification.Confidence,
+                    Reasoning = $"[LOW CONFIDENCE - NEEDS HUMAN REVIEW] {classification.Reasoning}",
+                    IndexedAt = DateTimeOffset.UtcNow
+                }, ct);
+            }
 
             await _reviewQueue.EnqueueAsync(new ReviewQueueItem
             {
@@ -160,7 +168,9 @@ public class DocumentWorkflow : IDocumentWorkflow
         var profile = _profileStore.GetProfile(profileName)
             ?? throw new InvalidOperationException($"Classification profile '{profileName}' not found.");
 
-        var examples = await _rag.GetClassificationExamplesAsync(text, profileName, count: 3);
+        var examples = _options.EnableRagExamples
+            ? await _rag.GetClassificationExamplesAsync(text, profileName, count: 3, ct)
+            : new List<ClassificationExample>();
         return await _classification.ClassifyAsync(text, profile, examples, ct);
     }
 
@@ -169,6 +179,15 @@ public class DocumentWorkflow : IDocumentWorkflow
     /// </summary>
     public async Task<RagResponse> QueryAsync(string question, string? categoryFilter = null, CancellationToken ct = default)
     {
+        if (!_options.EnableRagQuery)
+        {
+            return new RagResponse
+            {
+                Answer = "RAG query is disabled by configuration (Workflow:EnableRagQuery=false).",
+                Sources = new List<RagSource>()
+            };
+        }
+
         return await _rag.QueryAsync(question, categoryFilter, ct);
     }
 }

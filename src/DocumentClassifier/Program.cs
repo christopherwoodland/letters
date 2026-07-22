@@ -28,7 +28,7 @@ builder.Services.AddSingleton<TokenCredential>(_ =>
 });
 
 // Services
-builder.Services.AddSingleton<IProfileStore, InMemoryProfileStore>();
+builder.Services.AddSingleton<IProfileStore, FileBackedProfileStore>();
 builder.Services.AddSingleton<ITextExtractionService, TextExtractionService>();
 builder.Services.AddSingleton<IClassificationService, ClassificationService>();
 builder.Services.AddSingleton<IDocumentStorageService, DocumentStorageService>();
@@ -191,9 +191,17 @@ SeedProfiles(profileStore);
 
 // Ensure search index exists if configured
 var searchOptions = app.Services.GetRequiredService<IOptions<SearchOptions>>().Value;
+var workflowOptions = app.Services.GetRequiredService<IOptions<WorkflowOptions>>().Value;
 var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
 
-if (!string.IsNullOrWhiteSpace(searchOptions.Endpoint)
+startupLogger.LogInformation(
+    "Workflow RAG flags: Examples={EnableRagExamples}, Indexing={EnableRagIndexing}, Query={EnableRagQuery}",
+    workflowOptions.EnableRagExamples,
+    workflowOptions.EnableRagIndexing,
+    workflowOptions.EnableRagQuery);
+
+if (workflowOptions.EnableRagIndexing
+    && !string.IsNullOrWhiteSpace(searchOptions.Endpoint)
     && !searchOptions.Endpoint.Contains("YOUR-SEARCH", StringComparison.OrdinalIgnoreCase))
 {
     try
@@ -206,6 +214,10 @@ if (!string.IsNullOrWhiteSpace(searchOptions.Endpoint)
     {
         startupLogger.LogWarning(ex, "Search index initialization failed. API will continue running without RAG indexing.");
     }
+}
+else if (!workflowOptions.EnableRagIndexing)
+{
+    startupLogger.LogInformation("RAG indexing is disabled by workflow configuration. Skipping search index initialization.");
 }
 else
 {
@@ -225,9 +237,13 @@ app.Run();
 
 static void SeedProfiles(IProfileStore store)
 {
+    const string defaultProfileName = "relief_request_binary";
+    if (store.GetProfile(defaultProfileName) is not null)
+        return;
+
     store.AddOrUpdate(new DocumentClassifier.Models.ClassificationProfile
     {
-        Name = "relief_request_binary",
+        Name = defaultProfileName,
         Description = "Binary classification: does the filing request court relief or not",
         SystemPrompt = "You are a legal document classifier for court filings. Decide whether the filing asks the court to do something on the litigant's behalf (relief requested) or not.",
         Categories = new()

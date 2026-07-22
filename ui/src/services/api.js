@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-// Use relative URL so Vite dev server proxy routes /api -> http://localhost:5000
+// Use relative URL so Vite dev server proxy routes /api -> http://localhost:5100
 const api = axios.create({
   baseURL: '/api',
   headers: {
@@ -44,7 +44,7 @@ export const documentAPI = {
     console.log(`[API] processDocument: file="${file.name}" (${(file.size / 1024).toFixed(1)}KB), profile="${profileName}"`)
     const formData = new FormData()
     formData.append('file', file)
-    
+
     return api.post(`/documents/process?profileName=${encodeURIComponent(profileName)}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
@@ -54,7 +54,7 @@ export const documentAPI = {
   extractText: async (file) => {
     const formData = new FormData()
     formData.append('file', file)
-    
+
     return api.post('/documents/extract', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

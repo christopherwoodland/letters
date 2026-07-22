@@ -164,6 +164,13 @@ Example templates:
 - `.env.example`
 - `src/DocumentClassifier.MCP/.env.example`
 
+RAG workflow flags (appsettings `Workflow` section or env vars):
+- `EnableRagExamples` / `Workflow__EnableRagExamples`
+- `EnableRagIndexing` / `Workflow__EnableRagIndexing`
+- `EnableRagQuery` / `Workflow__EnableRagQuery`
+
+Set all three to `false` to run classification flow without RAG dependencies.
+
 ## Testing
 
 Run tests:
@@ -175,5 +182,7 @@ dotnet test tests/DocumentClassifier.Tests/DocumentClassifier.Tests.csproj
 ## Notes
 
 - Review queue is file-backed under app data path.
-- Search index creation is skipped when Search endpoint is not configured.
+- Profiles are file-backed at `data/profiles.json` under the API app base directory.
+- You can override the profile data directory with environment variable `DOCUMENT_CLASSIFIER_DATA_DIR`.
+- Search index creation is skipped when Search endpoint is not configured or all RAG workflow flags are disabled.
 - Authentication is optional in development and should be enabled for production.

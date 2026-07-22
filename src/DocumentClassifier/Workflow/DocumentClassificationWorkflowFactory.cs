@@ -8,11 +8,14 @@ namespace DocumentClassifier.Workflow;
 public class WorkflowOptions
 {
     public double ConfidenceThreshold { get; set; } = 0.7;
+    public bool EnableRagExamples { get; set; } = false;
+    public bool EnableRagIndexing { get; set; } = false;
+    public bool EnableRagQuery { get; set; } = false;
 }
 
 /// <summary>
 /// Builds and provides the document classification workflow graph.
-/// 
+///
 /// Graph topology:
 ///   StoreDocument → ExtractText → Classify → [high confidence] → IndexDocument
 ///                                           → [low confidence]  → HumanReview

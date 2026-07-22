@@ -13,6 +13,15 @@ Fast reference for local run and Azure deployment.
 API: `http://localhost:5100`
 Swagger: `http://localhost:5100/swagger`
 
+Optional no-RAG mode (suppress Search dependency): set
+- `Workflow__EnableRagExamples=false`
+- `Workflow__EnableRagIndexing=false`
+- `Workflow__EnableRagQuery=false`
+
+Profile persistence:
+- Default: `data/profiles.json` under API app base directory.
+- Override: set `DOCUMENT_CLASSIFIER_DATA_DIR`.
+
 ### API + MCP with Docker
 
 ```bash
@@ -27,7 +36,7 @@ MCP tools base: `http://localhost:7071/api/mcp/tools`
 Terminal 1:
 
 ```powershell
-dotnet run --project src/DocumentClassifier/DocumentClassifier.csproj --urls "http://localhost:5000"
+dotnet run --project src/DocumentClassifier/DocumentClassifier.csproj --urls "http://localhost:5100"
 ```
 
 Terminal 2:

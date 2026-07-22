@@ -131,4 +131,41 @@ public class ProfileStoreTests
         // Assert
         Assert.False(result);
     }
+
+    [Fact]
+    public void FileBackedStore_PersistsProfileAcrossInstances()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), "doc-classifier-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var originalDataDir = Environment.GetEnvironmentVariable("DOCUMENT_CLASSIFIER_DATA_DIR");
+        Environment.SetEnvironmentVariable("DOCUMENT_CLASSIFIER_DATA_DIR", tempDir);
+
+        try
+        {
+            var store1 = new FileBackedProfileStore();
+            var profile = new ClassificationProfile
+            {
+                Name = "persisted",
+                Description = "Persisted profile",
+                SystemPrompt = "Prompt",
+                Categories = new List<string> { "c1" }
+            };
+
+            // Act
+            store1.AddOrUpdate(profile);
+            var store2 = new FileBackedProfileStore();
+            var loaded = store2.GetProfile("persisted");
+
+            // Assert
+            Assert.NotNull(loaded);
+            Assert.Equal("Persisted profile", loaded!.Description);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DOCUMENT_CLASSIFIER_DATA_DIR", originalDataDir);
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, true);
+        }
+    }
 }

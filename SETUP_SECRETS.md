@@ -48,6 +48,11 @@ dotnet user-secrets set "Search:Endpoint" "https://your-search-service.search.wi
 dotnet user-secrets set "Search:ApiKey" "your-api-key-here"
 dotnet user-secrets set "Search:IndexName" "court-documents"
 
+# Optional: disable RAG features entirely
+dotnet user-secrets set "Workflow:EnableRagExamples" "false"
+dotnet user-secrets set "Workflow:EnableRagIndexing" "false"
+dotnet user-secrets set "Workflow:EnableRagQuery" "false"
+
 # Tenant ID
 dotnet user-secrets set "Azure:TenantId" "your-tenant-id"
 ```
@@ -88,6 +93,9 @@ $env:AzureOpenAI__Endpoint = "https://..."
 $env:AzureOpenAI__ApiKey = "..."
 $env:Search__Endpoint = "https://..."
 $env:Search__ApiKey = "..."
+$env:Workflow__EnableRagExamples = "false"
+$env:Workflow__EnableRagIndexing = "false"
+$env:Workflow__EnableRagQuery = "false"
 
 # Bash/Linux
 export DocumentIntelligence__Endpoint="https://..."
@@ -96,9 +104,18 @@ export AzureOpenAI__Endpoint="https://..."
 export AzureOpenAI__ApiKey="..."
 export Search__Endpoint="https://..."
 export Search__ApiKey="..."
+export Workflow__EnableRagExamples="false"
+export Workflow__EnableRagIndexing="false"
+export Workflow__EnableRagQuery="false"
 ```
 
 ## .env Files (Development Only)
+
+### Profile Storage Location
+
+The API now persists classification profiles to a local JSON file:
+- Default path: `data/profiles.json` under the API app base directory (for example `src/DocumentClassifier/bin/Debug/net9.0/data/profiles.json` when running locally).
+- Override directory: set `DOCUMENT_CLASSIFIER_DATA_DIR` to a custom folder path.
 
 For convenience, you can create a `.env` file in the project root:
 
@@ -111,6 +128,7 @@ AzureOpenAI__ApiKey=your-key
 Search__Endpoint=https://...
 Search__ApiKey=your-key
 Azure__TenantId=your-tenant-id
+DOCUMENT_CLASSIFIER_DATA_DIR=./.localdata
 ```
 
 Then load it in your shell:
