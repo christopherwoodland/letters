@@ -156,7 +156,7 @@ Location:          $Location
 [NEXT STEPS]
    1. Update API keys in Azure Key Vault
    2. Test endpoints:
-      curl http://$apiContainerFqdn/api/profiles
+        curl $apiContainerAppUrl/api/profiles
    3. Configure custom domain (optional)
    4. Set up monitoring and alerts
 

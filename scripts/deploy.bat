@@ -1,64 +1,23 @@
 @echo off
-REM Windows deployment script for Document Classifier
+setlocal
 
-setlocal enabledelayedexpansion
-
-REM Configuration
 set RESOURCE_GROUP_NAME=%1
-if "!RESOURCE_GROUP_NAME!"=="" set RESOURCE_GROUP_NAME=rg-document-classifier-mcp
+if "%RESOURCE_GROUP_NAME%"=="" set RESOURCE_GROUP_NAME=rg-document-classifier-mcp
 
 set LOCATION=%2
-if "!LOCATION!"=="" set LOCATION=eastus
+if "%LOCATION%"=="" set LOCATION=eastus
 
-echo ======================================
-echo  Document Classifier Azure Deployment
-echo ======================================
-echo.
-
-REM Step 1: Create Resource Group
-echo Creating resource group: !RESOURCE_GROUP_NAME!
-call az group create ^
-  --name "!RESOURCE_GROUP_NAME!" ^
-  --location "!LOCATION!"
-
-if errorlevel 1 (
-  echo Failed to create resource group
-  exit /b 1
+where pwsh >nul 2>nul
+if %ERRORLEVEL%==0 (
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "%~dp0Deploy-ToAzure.ps1" -ResourceGroup "%RESOURCE_GROUP_NAME%" -Location "%LOCATION%"
+  exit /b %ERRORLEVEL%
 )
-echo.
 
-REM Step 2: Build Docker images locally (optional)
-echo Building Docker images...
-call docker-compose build
-if errorlevel 1 (
-  echo Failed to build Docker images
-  exit /b 1
+where powershell >nul 2>nul
+if %ERRORLEVEL%==0 (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Deploy-ToAzure.ps1" -ResourceGroup "%RESOURCE_GROUP_NAME%" -Location "%LOCATION%"
+  exit /b %ERRORLEVEL%
 )
-echo.
 
-REM Step 3: Deploy via Bicep
-echo Deploying infrastructure...
-call az deployment group create ^
-  --resource-group "!RESOURCE_GROUP_NAME!" ^
-  --template-file azure/infra/containers.bicep ^
-  --parameters location="!LOCATION!" environmentName="prod"
-
-if errorlevel 1 (
-  echo Failed to deploy infrastructure
-  exit /b 1
-)
-echo.
-
-echo ======================================
-echo  Deployment Complete!
-echo ======================================
-echo Resource Group: !RESOURCE_GROUP_NAME!
-echo Location: !LOCATION!
-echo.
-echo Next steps:
-echo   1. Configure Azure Key Vault with API keys
-echo   2. Test endpoints
-echo   3. Monitor via Azure Portal
-echo.
-
-endlocal
+echo Neither pwsh nor powershell was found. Install PowerShell to run scripts\Deploy-ToAzure.ps1.
+exit /b 1

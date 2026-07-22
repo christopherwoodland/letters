@@ -2,7 +2,9 @@
 
 React frontend for the Document Classifier API.
 
-## Setup
+## Local Run Options
+
+### Option A: UI only (against an existing API)
 
 ```bash
 cd ui
@@ -10,7 +12,33 @@ npm install
 npm run dev
 ```
 
-The app will start at **http://localhost:5173** and proxy API requests to **http://localhost:5000**.
+The app runs at **http://localhost:5173** and proxies `/api` to **http://localhost:5000**.
+
+### Option B: Run UI + local API
+
+Start API in one terminal:
+
+```powershell
+dotnet run --project src/DocumentClassifier/DocumentClassifier.csproj --urls "http://localhost:5000"
+```
+
+Start UI in another terminal:
+
+```bash
+cd ui
+npm install
+npm run dev
+```
+
+### Option C: Run UI against Docker stack
+
+From repo root:
+
+```bash
+docker compose up --build
+```
+
+This exposes API at **http://localhost:5000**, matching the Vite proxy.
 
 ## Features
 

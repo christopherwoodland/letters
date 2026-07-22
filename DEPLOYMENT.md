@@ -1,37 +1,58 @@
 # Deployment Guide
 
-## Quick Start - Deploy to Azure with Containers
+This guide covers deployment options for this repo and when to use each one.
 
-### Prerequisites
-- Azure CLI (`az` command)
-- Docker Desktop (for local testing)
-- PowerShell or Bash shell
+## Deployment Options
 
-### Option 1: Deploy on Linux/Mac
+| Option | Use when | Deploys |
+|---|---|---|
+| `scripts/Deploy-ToAzure.ps1` | You are on Windows and want the full API + MCP deployment quickly | Azure Container Apps for API and MCP, plus ACR |
+| `scripts/deploy.sh` | You are on Linux/macOS and want the same full deployment | Azure Container Apps for API and MCP, plus ACR |
+| Manual Azure CLI + Bicep | You need full control over each step | Same resources as scripts |
+| `azd up` | You want the azd path for the MCP Function service | Azure Function App defined by `azure.yaml` |
 
-```bash
-cd /path/to/letters
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh "rg-document-classifier-mcp" "eastus"
-```
+## Prerequisites
 
-### Option 2: Deploy on Windows
+- Azure CLI installed and logged in (`az login`)
+- Access to a subscription with permission to create resources
+- Docker is optional for deployment scripts because images are built in Azure (`az acr build`)
+- For `azd` flow: Azure Developer CLI installed (`azd`)
+
+## Option 1: Windows PowerShell Script (Recommended)
 
 ```powershell
-cd C:\path\to\letters
-.\scripts\deploy.bat "rg-document-classifier-mcp" "eastus"
+./scripts/Deploy-ToAzure.ps1 -ResourceGroup "rg-document-classifier-mcp" -Location "eastus"
 ```
 
-### Option 3: Manual Deployment Steps
+What it does:
+- Creates resource group
+- Creates Azure Container Registry
+- Builds and pushes both images via cloud build
+- Enables ACR admin credentials for image pull
+- Runs deployment against `azure/infra/containers.bicep`
+- Prints final API and MCP URLs
 
-#### 1. Create Resource Group
+## Option 2: Linux/macOS Script
+
 ```bash
-az group create \
-  --name rg-document-classifier-mcp \
-  --location eastus
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh rg-document-classifier-mcp eastus
 ```
 
-#### 2. Create Container Registry
+What it does:
+- Same flow as PowerShell script
+- Includes `az deployment group what-if` before create
+
+## Option 3: Manual Azure CLI + Bicep
+
+### 1) Create resource group
+
+```bash
+az group create --name rg-document-classifier-mcp --location eastus
+```
+
+### 2) Create ACR
+
 ```bash
 az acr create \
   --resource-group rg-document-classifier-mcp \
@@ -40,21 +61,15 @@ az acr create \
   --location eastus
 ```
 
-#### 3. Login to ACR
-```bash
-az acr login --name dcmcp001
-```
+### 3) Build and push images in Azure
 
-#### 4. Build and Push Images
 ```bash
-# Build and push main API
 az acr build \
   --registry dcmcp001 \
   --image document-classifier:latest \
   --file src/DocumentClassifier/Dockerfile \
   .
 
-# Build and push MCP Functions
 az acr build \
   --registry dcmcp001 \
   --image document-classifier-mcp:latest \
@@ -62,178 +77,106 @@ az acr build \
   .
 ```
 
-#### 5. Deploy Infrastructure
+### 4) Enable ACR admin and get credentials
+
 ```bash
-az deployment group create \
+az acr update --resource-group rg-document-classifier-mcp --name dcmcp001 --admin-enabled true
+```
+
+Collect values:
+- `containerRegistryLoginServer` from `az acr show --query loginServer`
+- `containerRegistryUsername` and `containerRegistryPassword` from `az acr credential show`
+
+### 5) Validate with what-if
+
+```bash
+az deployment group what-if \
+  --name containers-manual \
   --resource-group rg-document-classifier-mcp \
   --template-file azure/infra/containers.bicep \
-  --parameters location=eastus environmentName=prod
+  --parameters location=eastus \
+               environmentName=prod \
+               containerRegistryName=dcmcp001 \
+               containerRegistryLoginServer=dcmcp001.azurecr.io \
+               containerRegistryUsername=<acr-username> \
+               containerRegistryPassword=<acr-password>
 ```
 
----
-
-## Local Testing with Docker Compose
-
-### Prerequisites
-- Docker Desktop running
-
-### Start All Services
-```bash
-docker-compose up
-```
-
-This starts:
-- **API**: `http://localhost:5000`
-- **MCP Functions**: `http://localhost:7071`
-
-### Test the API
-```bash
-curl -X GET http://localhost:5000/api/profiles
-```
-
-### Test MCP Tools
-```bash
-curl -X POST http://localhost:7071/api/mcp/tools/list_profiles \
-  -H "Content-Type: application/json"
-```
-
-### Stop Services
-```bash
-docker-compose down
-```
-
----
-
-## Architecture
-
-### Local (docker-compose)
-```
-┌─────────────────────────────────┐
-│   Docker Compose Network        │
-├─────────────┬───────────────────┤
-│  API         │  MCP Functions    │
-│ :5000        │  :7071            │
-└─────────────┴───────────────────┘
-```
-
-### Azure Deployment
-```
-┌──────────────────────────────────────────┐
-│  Azure Resource Group                    │
-├────────────┬──────────────────┬──────────┤
-│  Container │  Container App   │  Log     │
-│  Registry  │  (MCP Functions) │  Analytics
-│            │                  │          │
-│  Container │ (API, when scaled)         │
-│  Instance  │                  │          │
-└────────────┴──────────────────┴──────────┘
-```
-
----
-
-## Configuration
-
-### Environment Variables
-All configuration is passed via environment variables. See `docker-compose.yml` and Bicep templates.
-
-**Key variables:**
-- `ASPNETCORE_ENVIRONMENT`: Development, Staging, or Production
-- `AZURE_TENANT_ID`: Your Azure tenant ID
-- `Search__Endpoint`: Azure Cognitive Search endpoint
-- `AzureOpenAI__Endpoint`: Azure OpenAI Service endpoint
-
-### Secrets Management
-In production, use Azure Key Vault:
+### 6) Deploy
 
 ```bash
-# Store API key in Key Vault
-az keyvault secret set \
-  --vault-name my-keyvault \
-  --name SearchApiKey \
-  --value "<actual-api-key>"
-```
-
----
-
-## Monitoring & Logs
-
-### View Container Logs
-```bash
-# Container Instance
-az container logs \
+az deployment group create \
+  --name containers-manual \
   --resource-group rg-document-classifier-mcp \
-  --name document-classifier-api
-
-# Container App
-az containerapp logs show \
-  --resource-group rg-document-classifier-mcp \
-  --name document-classifier-mcp
+  --template-file azure/infra/containers.bicep \
+  --parameters location=eastus \
+               environmentName=prod \
+               containerRegistryName=dcmcp001 \
+               containerRegistryLoginServer=dcmcp001.azurecr.io \
+               containerRegistryUsername=<acr-username> \
+               containerRegistryPassword=<acr-password>
 ```
 
-### View in Azure Portal
-1. Navigate to Resource Group
-2. Click on Container Instance or Container App
-3. View "Logs" under Monitoring
+### 7) Fetch endpoints
 
----
+```bash
+az deployment group show \
+  --name containers-manual \
+  --resource-group rg-document-classifier-mcp \
+  --query properties.outputs
+```
+
+## Option 4: azd path (MCP Function service)
+
+Use this when you want the `azure.yaml` deployment model.
+
+```bash
+azd auth login
+azd up
+```
+
+Notes:
+- This flow uses the `mcp-function` service from `azure.yaml`.
+- Infrastructure is defined in `azure/infra/mcp-function.bicep`.
+
+## Post-Deployment Verification
+
+### API check
+
+```bash
+curl https://<api-container-app-url>/api/profiles
+```
+
+### MCP check
+
+```bash
+curl -X POST https://<mcp-container-app-url>/api/mcp/tools/list_profiles
+```
+
+If using Function-level auth, include `x-functions-key`.
 
 ## Troubleshooting
 
-### Container won't start
-```bash
-# Check logs
-docker-compose logs -f api
-docker-compose logs -f mcp-functions
-```
+### Deployment fails with missing parameters
 
-### API not responding
-```bash
-# Check health
-curl http://localhost:5000/health
+Make sure you pass all required Bicep parameters for `azure/infra/containers.bicep`:
+- `containerRegistryName`
+- `containerRegistryLoginServer`
+- `containerRegistryUsername`
+- `containerRegistryPassword`
 
-# Check container status
-docker ps
-```
+### Container starts but app is unreachable
 
-### MCP tools returning 500 errors
-1. Verify Azure credentials are set
-2. Check Azure services are accessible
-3. Review logs: `az container logs --name document-classifier-api ...`
-
----
-
-## Cleanup
-
-Remove Azure resources when done:
+- Verify ingress URL from deployment outputs
+- Check logs:
 
 ```bash
-az group delete \
-  --name rg-document-classifier-mcp \
-  --yes \
-  --no-wait
+az containerapp logs show --resource-group <rg> --name document-classifier-api
+az containerapp logs show --resource-group <rg> --name document-classifier-mcp
 ```
 
----
+### Cleanup
 
-## Cost Optimization
-
-**Current setup:**
-- Container Registry (Basic): ~$5/month
-- Container Instance (API): Pay-per-second (~$0.0015 per vCPU-second)
-- Container App (MCP): Minimum 1 replica (~$20/month) with auto-scale up to 5
-
-**To reduce costs:**
-1. Use Azure Functions instead of Container App (consumption plan)
-2. Schedule container instances to turn off during off-hours
-3. Use private endpoints to reduce data transfer costs
-
----
-
-## Next Steps
-
-- [ ] Deploy to Azure
-- [ ] Configure monitoring and alerts
-- [ ] Set up CI/CD pipeline
-- [ ] Configure custom domain and SSL
-- [ ] Implement rate limiting
-- [ ] Add authentication/authorization
+```bash
+az group delete --name rg-document-classifier-mcp --yes --no-wait
+```

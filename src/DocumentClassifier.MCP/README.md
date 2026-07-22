@@ -164,48 +164,61 @@ curl -X POST https://<function-app>.azurewebsites.net/api/mcp/tools/get_review_q
 ### Prerequisites
 - .NET 9.0 SDK
 - Azure Functions Core Tools (`func` CLI)
-- User secrets configured with Azure credentials (from main DocumentClassifier project)
+- Local settings in `src/DocumentClassifier.MCP/local.settings.json`
 
-### Running Locally
+### Run MCP Only
 
-1. Set user secrets with API keys:
 ```bash
 cd src/DocumentClassifier.MCP
-dotnet user-secrets set "Search:ApiKey" "<api-key>"
-```
-
-2. Start the local Functions runtime:
-```bash
 func start
 ```
 
-3. Call tools via HTTP:
+Call tools via HTTP:
+
 ```bash
 curl -X POST http://localhost:7071/api/mcp/tools/list_profiles
 ```
+
+### Run API + MCP Together
+
+From repo root:
+
+```bash
+docker compose up --build
+```
+
+Endpoints:
+- API: `http://localhost:5000`
+- MCP: `http://localhost:7071/api/mcp/tools/list_profiles`
 
 ---
 
 ## Deployment to Azure
 
-### Using Bicep
+Choose one:
 
-```bash
-# Create resource group
-az group create --name rg-document-classifier-mcp --location eastus
+### Option 1: Full API + MCP container deployment
 
-# Deploy infrastructure
-az deployment group create \
-  --resource-group rg-document-classifier-mcp \
-  --template-file azure/infra/mcp-function.bicep
+Windows:
+
+```powershell
+./scripts/Deploy-ToAzure.ps1 -ResourceGroup "rg-document-classifier-mcp" -Location "eastus"
 ```
 
-### Using `func` CLI
+Linux/macOS:
 
 ```bash
-# Publish to Azure
-func azure functionapp publish <function-app-name> --build remote
+./scripts/deploy.sh rg-document-classifier-mcp eastus
 ```
+
+### Option 2: MCP Function service via azd
+
+```bash
+azd auth login
+azd up
+```
+
+This uses `azure.yaml` and `azure/infra/mcp-function.bicep`.
 
 ---
 
