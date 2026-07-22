@@ -183,6 +183,7 @@ if (authOptions.GetValue<bool>("Enabled"))
 app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.MapControllers();
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 // Seed default classification profiles
 var profileStore = app.Services.GetRequiredService<IProfileStore>();
